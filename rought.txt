@@ -1,0 +1,1 @@
+command to make ada global: sudo cp ada /usr/local/bin/

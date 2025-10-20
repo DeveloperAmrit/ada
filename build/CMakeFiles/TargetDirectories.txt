@@ -1,2 +1,0 @@
-/home/amrit/D_drive/semesters/projects/ada/build/CMakeFiles/edit_cache.dir
-/home/amrit/D_drive/semesters/projects/ada/build/CMakeFiles/rebuild_cache.dir
