@@ -7,3 +7,10 @@ commands to build
 command to make ada global
     $ sudo cp ada /usr/local/bin/
     $ ada init
+
+For updating ada:
+    $ cd build
+    $ cmake ..
+    $ make
+    $ cd ..
+    $ ./build/ada init
