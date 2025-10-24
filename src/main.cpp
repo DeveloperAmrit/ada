@@ -21,7 +21,8 @@ int main(int argc, char* argv[]){
         ada_init();
     }
     else if(command == "add"){
-        ada_add();
+        std::string filePath = argv[2];
+        ada_add(filePath);
     }
     else if(command == "commit"){
         ada_commit();
