@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
-#include <filesystem>
+#include <string>
+#include <set>
+#include <sstream>
 #include <cryptlib.h>
 #include <sha.h>
 #include <hex.h>
@@ -51,10 +53,50 @@ void ada_add(const std::string &filePath){  //Parameter is the path of given fil
     fs::path objectPath = repoPath / "objects" / objectHash; // Build the full path for storing the file object inside '.ada/objects/<hash>'.
     std::ofstream outFile(objectPath, std::ios::binary); // Create a new file at the object path for writing in binary mode.
     outFile << content; // Write the file's original content into the new object file.
+    outFile.close();
 
-    // Open the staging (index) file in append mode to record added files.
-    std::ofstream indexFile(repoPath / "index", std::ios::app);
-    indexFile << filePath << " " << objectHash << "\n"; //marking it as staged for commit.
+    // Read existing index to avoid duplicates
+    std::set<std::string> indexedFiles;
+    fs::path indexPath = repoPath / "index";
+    if (fs::exists(indexPath)) {
+        std::ifstream existingIndex(indexPath);
+        std::string line;
+        while (std::getline(existingIndex, line)) {
+            std::istringstream iss(line);
+            std::string file;
+            iss >> file;
+            indexedFiles.insert(file);
+        }
+        existingIndex.close();
+    }
+
+    // Only add if not already in index or if hash changed
+    bool needsUpdate = true;
+    if (indexedFiles.find(filePath) != indexedFiles.end()) {
+        // File already staged, update the hash
+        std::ifstream oldIndex(indexPath);
+        std::ofstream tempIndex(repoPath / "index.tmp");
+        std::string line;
+        while (std::getline(oldIndex, line)) {
+            std::istringstream iss(line);
+            std::string file, hash;
+            iss >> file >> hash;
+            if (file == filePath) {
+                tempIndex << filePath << " " << objectHash << "\n";
+            } else {
+                tempIndex << line << "\n";
+            }
+        }
+        oldIndex.close();
+        tempIndex.close();
+        fs::remove(indexPath);
+        fs::rename(repoPath / "index.tmp", indexPath);
+    } else {
+        // Open the staging (index) file in append mode to record added files.
+        std::ofstream indexFile(indexPath, std::ios::app);
+        indexFile << filePath << " " << objectHash << "\n"; //marking it as staged for commit.
+        indexFile.close();
+    }
 
     std::cout << "Added " << filePath << " to staging area.\n";
 }
