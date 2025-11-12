@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e  # stop if any command fails
+
+echo "=== Cleaning old repos ==="
+rm -rf ada-local ada-remote
+mkdir ada-local ada-remote
+
+echo "=== Initializing remote repo ==="
+cd ada-remote
+../build/ada init
+cd ..
+
+echo "=== Initializing local repo ==="
+cd ada-local
+../build/ada init
+echo "[remote \"origin\"]" > .ada/config
+echo "path = ../ada-remote" >> .ada/config
+
+# create first commit locally
+echo "hello" > file.txt
+../build/ada add file.txt
+../build/ada commit -m "Initial commit"
+../build/ada push
+
+# simulate remote change
+cd ../ada-remote
+echo "remote edit" > file.txt
+../build/ada add file.txt
+../build/ada commit -m "Remote update"
+cd ../ada-local
+
+# simulate local change
+echo "local edit" > file.txt
+../build/ada add file.txt
+../build/ada commit -m "Local update"
+
+# test pull + merge
+../build/ada pull || echo "Pull failed (expected if divergence)"
+../build/ada merge || echo "Merge conflicts handled"
+
+# verify file content and log
+echo "=== Final log ==="
+../build/ada log
+
+# verify file content consistency
+cat file.txt

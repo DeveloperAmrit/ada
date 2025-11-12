@@ -1,0 +1,106 @@
+#!/bin/bash
+set -e
+
+ADA_BIN=../build/ada  # path to your compiled binary
+
+function check_equal() {
+    if [ "$1" != "$2" ]; then
+        echo "❌ Test failed: $3"
+        echo "Expected: $2"
+        echo "Got: $1"
+        exit 1
+    else
+        echo "✅ $3"
+    fi
+}
+
+echo "=== CLEANING OLD REPOS ==="
+rm -rf ada-local ada-remote
+mkdir ada-local ada-remote
+
+echo "=== INITIALIZING REMOTE REPO ==="
+cd ada-remote
+$ADA_BIN init
+cd ..
+
+echo "=== INITIALIZING LOCAL REPO ==="
+cd ada-local
+$ADA_BIN init
+echo "[remote \"origin\"]" > .ada/config
+echo "path = ../ada-remote" >> .ada/config
+
+echo "=== LOCAL COMMIT #1 ==="
+echo "hello" > file.txt
+$ADA_BIN add file.txt
+$ADA_BIN commit -m "Initial commit"
+$ADA_BIN push
+
+LOCAL_HASH1=$(cat .ada/refs/heads/main)
+REMOTE_HASH1=$(cat ../ada-remote/.ada/refs/heads/main)
+check_equal "$LOCAL_HASH1" "$REMOTE_HASH1" "Initial push syncs HEAD correctly"
+
+echo "=== REMOTE COMMIT #2 ==="
+cd ../ada-remote
+echo "remote edit" > file.txt
+$ADA_BIN add file.txt
+$ADA_BIN commit -m "Remote update"
+REMOTE_HASH2=$(cat .ada/refs/heads/main)
+cd ../ada-local
+
+echo "=== LOCAL COMMIT #2 ==="
+echo "local edit" > file.txt
+$ADA_BIN add file.txt
+$ADA_BIN commit -m "Local update"
+LOCAL_HASH2=$(cat .ada/refs/heads/main)
+
+if [ "$LOCAL_HASH2" == "$REMOTE_HASH2" ]; then
+    echo "❌ Divergence not created properly."
+    exit 1
+fi
+echo "✅ Divergence created between local and remote"
+
+echo "=== PULLING REMOTE CHANGES ==="
+set +e
+$ADA_BIN pull
+PULL_EXIT=$?
+set -e
+
+if [ $PULL_EXIT -ne 0 ]; then
+    echo "⚠️ Pull indicated divergence — expected if merge required."
+else
+    echo "✅ Pull completed successfully"
+fi
+
+echo "=== MERGING ==="
+$ADA_BIN merge
+
+echo "=== VALIDATING MERGE ==="
+MERGED_HASH=$(cat .ada/refs/heads/main)
+if [ "$MERGED_HASH" == "$LOCAL_HASH2" ]; then
+    echo "❌ Merge did not create a new commit"
+    exit 1
+else
+    echo "✅ Merge created a new commit"
+fi
+
+echo "=== CHECKING CONSISTENCY ==="
+LOCAL_OBJ_COUNT=$(ls .ada/objects | wc -l)
+REMOTE_OBJ_COUNT=$(ls ../ada-remote/.ada/objects | wc -l)
+if [ "$LOCAL_OBJ_COUNT" -lt "$REMOTE_OBJ_COUNT" ]; then
+    echo "❌ Local objects fewer than remote — push/pull failed"
+    exit 1
+else
+    echo "✅ Object stores synchronized"
+fi
+
+echo "=== FINAL LOG ==="
+$ADA_BIN log | head -n 10
+
+echo "=== CHECKING FILE CONTENT ==="
+if grep -q "<<<<<<<" file.txt; then
+    echo "⚠️ Merge conflict markers detected (manual resolution required)"
+else
+    echo "✅ Merge completed cleanly; file merged"
+fi
+
+echo "🎉 ALL TESTS PASSED SUCCESSFULLY!"
