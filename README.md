@@ -1,0 +1,2 @@
+ADA is a mini-Git model that executes the Git functions of init, add, commit, status, log, push, pull and merge.
+This project uses data structures like trees, hashmaps, linkedlists and directed acyclic graphs(DAG's).
