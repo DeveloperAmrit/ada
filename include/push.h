@@ -3,7 +3,6 @@
 
 #include <string>
 
-std::string get_remote_path();
-void push();
+void ada_push();
 
 #endif

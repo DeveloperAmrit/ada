@@ -1,6 +1,6 @@
 #ifndef ADA_PULL_H
 #define ADA_PULL_H
 
-void pull();
+void ada_pull();
 
 #endif
